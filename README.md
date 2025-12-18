@@ -1,6 +1,7 @@
 # ChittySync v1.1
 
 [![Download Engine](https://img.shields.io/badge/download-engine.tgz-blue?logo=github)](https://github.com/chittyos/chittysync/releases/latest/download/chittyos-engine.tgz)
+[![Download Verifier](https://img.shields.io/badge/download-verifier.tgz-purple?logo=github)](https://github.com/chittyos/chittysync/releases/latest/download/chittyos-verifier.tgz)
 
 Authoritative snapshot implementing the ChittySync engine and verifier per canonical directives.
 
