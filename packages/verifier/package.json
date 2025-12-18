@@ -1,0 +1,35 @@
+{
+  "name": "@chittyos/verifier",
+  "version": "1.1.0",
+  "type": "module",
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "tsc -p tsconfig.json",
+    "start": "node dist/cli.js",
+    "lint": "eslint .",
+    "fmt": "prettier -w .",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.4",
+    "canonicalize": "^2.0.0",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.6.3",
+    "vitest": "^1.6.0"
+  }
+  ,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": "git+https://github.com/chittyos/chittysync.git"
+}

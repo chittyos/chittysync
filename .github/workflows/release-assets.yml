@@ -1,0 +1,42 @@
+name: release-assets
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+      - name: Install
+        run: pnpm install
+      - name: Build
+        run: pnpm -r build
+      - name: Pack artifacts
+        run: |
+          mkdir -p artifacts
+          pnpm --filter @chittyos/engine pack --pack-destination artifacts
+          pnpm --filter @chittyos/verifier pack --pack-destination artifacts
+          # Normalize names for stable latest download links
+          mv artifacts/*engine-*.tgz artifacts/chittyos-engine.tgz || true
+          mv artifacts/*verifier-*.tgz artifacts/chittyos-verifier.tgz || true
+          shasum -a 256 artifacts/* > artifacts/checksums.txt
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/chittyos-engine.tgz
+            artifacts/chittyos-verifier.tgz
+            artifacts/checksums.txt
+          generate_release_notes: true

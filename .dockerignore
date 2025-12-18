@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/.vite
+**/.cache
+**/coverage
+*.log
+Dockerfile*
+docker-compose*.yml
+

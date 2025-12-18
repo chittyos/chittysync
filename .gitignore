@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.pnpm-store/
+.env
+.env.*
+coverage/
+artifacts/
+*.log
+*.tgz
+

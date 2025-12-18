@@ -1,0 +1,8 @@
+# Configure the @chitty scope to publish/consume from your registry
+# Replace the URL below with your git.chitty.cc npm registry endpoint
+# For GitLab example: https://git.chitty.cc/api/v4/projects/<project-id>/packages/npm/
+# For Group-level registry: https://git.chitty.cc/api/v4/packages/npm/
+
+# GitHub Packages (npm)
+@chittyos:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
