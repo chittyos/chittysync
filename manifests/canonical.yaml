@@ -1,0 +1,107 @@
+operator:
+  id: chitty-cloud-repo-operator
+  version: 1.0.0
+  description: "Autonomous orchestrator for GitHub, Cloudflare, Neon, and Google Drive synchronization with ChittyOS core alignment."
+  maintainer: "ChittyOS Node Registry"
+  canonical_hash: "auto-compute"
+  fingerprint: "dna-auto"
+
+modules:
+  - name: chittycanon-sdk
+    mode: lazy
+    verified: true
+  - name: r2-ingestion
+    mode: active
+    verified: true
+  - name: neon-sync
+    mode: active
+    verified: true
+  - name: github-config
+    mode: active
+    verified: true
+  - name: google-drive-ingest
+    mode: passive
+    verified: true
+  - name: chittyid-client
+    mode: active
+    verified: true
+  - name: chittyverify-client
+    mode: active
+    verified: true
+  - name: chittychain-client
+    mode: active
+    verified: true
+  - name: chittycert-client
+    mode: active
+    verified: true
+  - name: schema-validation
+    mode: active
+    verified: true
+  - name: dna-fingerprint
+    mode: active
+    verified: true
+
+sync_targets:
+  - api.chitty.cc
+  - mcp.chitty.cc
+  - schema.chitty.cc
+  - dna.chitty.cc
+  - chain.chitty.cc
+  - ledger.chitty.cc
+  - registry.chitty.cc
+  - register.chitty.cc
+  - canon.chitty.cc
+  - connect.chitty.cc
+  - auth.chitty.cc
+
+authentication:
+  primary: connect.chitty.cc
+  secondary: auth.chitty.cc
+  token_types:
+    - CHITTY_CHAIN_TOKEN
+    - CHITTY_VERIFY_TOKEN
+    - CHITTY_TRUST_TOKEN
+    - CHITTY_CERT_SERVICE_TOKEN
+    - CHITTY_ID_SERVICE_TOKEN
+  rotation_policy: short-lived
+  ocsp_enabled: true
+
+schema_alignment:
+  source_nodes:
+    - schema.chitty.cc
+    - canon.chitty.cc
+    - dna.chitty.cc
+  validation: strict
+  quarantine_policy: on_mismatch
+
+repository:
+  config_branch: chitty/config
+  audit_branch: chitty/audit
+  manifest_path: /manifests/canonical.yaml
+  auto_commit: true
+  pull_request_mode: audit
+
+gealth_report:
+  enabled: true
+  endpoint: registry.chitty.cc
+  broadcast_interval: 300
+  include:
+    - node_state
+    - schema_alignment
+    - module_hashes
+    - auth_state
+    - version
+    - uptime
+
+security:
+  encryption: AES-256
+  tls_min_version: 1.2
+  kms_rotation: true
+  oauth_scope: least-privilege
+  secret_redaction: partial
+
+signing:
+  authority: chittycert-client
+  cert_level: L2
+  hash_algorithm: SHA3-512
+  signature_output: canonical.sig
