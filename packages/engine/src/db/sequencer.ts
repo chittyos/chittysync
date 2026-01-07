@@ -1,13 +1,21 @@
-import { sql } from "./neon";
+import { rawQuery } from "./neon-worker";
 
-export async function nextSeq(registry: string): Promise<number> {
-  const r = await sql`
-    UPDATE registry_sequencer
-    SET seq = seq + 1
-    WHERE registry=${registry}
-    RETURNING seq
-  `;
-  if (!r.length) throw new Error("SEQUENCER_MISSING");
-  return r[0].seq as number;
+interface SeqRow {
+  seq: number;
 }
 
+export async function nextSeq(databaseUrl: string, registry: string): Promise<number> {
+  const safeRegistry = registry.replace(/'/g, "''");
+  const query = `
+    UPDATE registry_sequencer
+    SET seq = seq + 1
+    WHERE registry = '${safeRegistry}'
+    RETURNING seq
+  `;
+
+  const result = await rawQuery<SeqRow>(databaseUrl, query);
+  if (!result.length) {
+    throw new Error("SEQUENCER_MISSING");
+  }
+  return result[0].seq;
+}

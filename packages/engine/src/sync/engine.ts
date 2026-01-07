@@ -270,19 +270,19 @@ export class SyncEngine {
    * Fetch data from PostgreSQL table
    */
   private async fetchPostgresData(tableName: string): Promise<RowSnapshot[]> {
-    const sql = getDb(this.databaseUrl);
+    const { rawQuery } = await import("../db/neon-worker");
 
-    // Get primary key column (assumes 'id' or first column)
-    const rows = await sql`
-      SELECT * FROM ${sql(tableName)}
-      ORDER BY updated_at DESC NULLS LAST
-    `;
+    // Sanitize table name to prevent SQL injection
+    const safeTableName = tableName.replace(/[^a-zA-Z0-9_]/g, "");
+    const query = `SELECT * FROM ${safeTableName} ORDER BY updated_at DESC NULLS LAST`;
 
-    return rows.map((row: any) => ({
+    const rows = await rawQuery<Record<string, unknown>>(this.databaseUrl, query);
+
+    return rows.map((row) => ({
       id: String(row.id || row[Object.keys(row)[0]]),
       hash: this.hashRow(row),
       data: row,
-      updatedAt: row.updated_at || new Date().toISOString(),
+      updatedAt: String(row.updated_at || new Date().toISOString()),
     }));
   }
 
@@ -519,22 +519,39 @@ export class SyncEngine {
    * Apply change to PostgreSQL
    */
   private async applyPostgresChange(change: ChangeRecord, tableName: string): Promise<void> {
-    const sql = getDb(this.databaseUrl);
+    const { rawQuery } = await import("../db/neon-worker");
+
+    // Sanitize table name
+    const safeTableName = tableName.replace(/[^a-zA-Z0-9_]/g, "");
 
     switch (change.type) {
-      case "create":
-        await sql`INSERT INTO ${sql(tableName)} ${sql(change.after || {})}`;
+      case "create": {
+        const data = change.after || {};
+        const columns = Object.keys(data).map((k) => k.replace(/[^a-zA-Z0-9_]/g, "")).join(", ");
+        const values = Object.values(data)
+          .map((v) => (typeof v === "string" ? `'${v.replace(/'/g, "''")}'` : v))
+          .join(", ");
+        await rawQuery(this.databaseUrl, `INSERT INTO ${safeTableName} (${columns}) VALUES (${values})`);
         break;
-      case "update":
-        await sql`
-          UPDATE ${sql(tableName)}
-          SET ${sql(change.after || {})}
-          WHERE id = ${change.rowId}
-        `;
+      }
+      case "update": {
+        const data = change.after || {};
+        const setClause = Object.entries(data)
+          .map(([k, v]) => {
+            const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "");
+            const safeVal = typeof v === "string" ? `'${v.replace(/'/g, "''")}'` : v;
+            return `${safeKey} = ${safeVal}`;
+          })
+          .join(", ");
+        const safeRowId = String(change.rowId).replace(/'/g, "''");
+        await rawQuery(this.databaseUrl, `UPDATE ${safeTableName} SET ${setClause} WHERE id = '${safeRowId}'`);
         break;
-      case "delete":
-        await sql`DELETE FROM ${sql(tableName)} WHERE id = ${change.rowId}`;
+      }
+      case "delete": {
+        const safeRowId = String(change.rowId).replace(/'/g, "''");
+        await rawQuery(this.databaseUrl, `DELETE FROM ${safeTableName} WHERE id = '${safeRowId}'`);
         break;
+      }
     }
   }
 
@@ -592,19 +609,26 @@ export class SyncEngine {
    * Get last snapshot for diff calculation
    */
   private async getLastSnapshot(configId: string): Promise<Map<string, RowSnapshot> | null> {
-    const sql = getDb(this.databaseUrl);
+    const { query } = await import("../db/neon-worker");
+
+    interface SnapshotRow {
+      row_id: string;
+      hash: string;
+      data: Record<string, unknown>;
+      updated_at: string;
+    }
 
     try {
-      const rows = await sql`
-        SELECT row_id, hash, data, updated_at
-        FROM sync_snapshots
-        WHERE config_id = ${configId}
-      `;
+      const rows = await query<SnapshotRow>(
+        this.databaseUrl,
+        `SELECT row_id, hash, data, updated_at FROM sync_snapshots WHERE config_id = $1`,
+        [configId]
+      );
 
       if (rows.length === 0) return null;
 
       return new Map(
-        rows.map((r: any) => [
+        rows.map((r) => [
           r.row_id,
           {
             id: r.row_id,

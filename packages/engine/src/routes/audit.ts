@@ -5,17 +5,41 @@
  */
 
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { Env } from "../worker";
-import { getDb } from "../db/neon-worker";
+import { rawQuery } from "../db/neon-worker";
 
 export const auditRoutes = new Hono<{ Bindings: Env }>();
+
+interface AuditEntry {
+  sync_id: string;
+  config_id: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  stats: Record<string, unknown> | null;
+  changes_count: number;
+  conflicts_count: number;
+  errors_count: number;
+}
+
+interface AuditSummary {
+  total_syncs: string;
+  successful: string;
+  partial: string;
+  failed: string;
+  active_configs: string;
+  total_changes: string | null;
+  total_conflicts: string | null;
+  total_errors: string | null;
+  avg_duration_seconds: string | null;
+}
 
 /**
  * GET /api/audit
  * List audit log entries
  */
-auditRoutes.get("/", async (c) => {
-  const sql = getDb(c.env.DATABASE_URL);
+auditRoutes.get("/", async (c: Context<{ Bindings: Env }>) => {
   const {
     configId,
     status,
@@ -27,32 +51,26 @@ auditRoutes.get("/", async (c) => {
 
   // Build dynamic query conditions
   const conditions: string[] = [];
-  const params: any[] = [];
 
   if (configId) {
-    conditions.push(`config_id = $${params.length + 1}`);
-    params.push(configId);
+    conditions.push(`config_id = '${configId.replace(/'/g, "''")}'`);
   }
 
   if (status) {
-    conditions.push(`status = $${params.length + 1}`);
-    params.push(status);
+    conditions.push(`status = '${status.replace(/'/g, "''")}'`);
   }
 
   if (startDate) {
-    conditions.push(`started_at >= $${params.length + 1}`);
-    params.push(startDate);
+    conditions.push(`started_at >= '${startDate.replace(/'/g, "''")}'`);
   }
 
   if (endDate) {
-    conditions.push(`started_at <= $${params.length + 1}`);
-    params.push(endDate);
+    conditions.push(`started_at <= '${endDate.replace(/'/g, "''")}'`);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // Use tagged template for the base query
-  const rows = await sql`
+  const query = `
     SELECT
       sync_id,
       config_id,
@@ -64,18 +82,22 @@ auditRoutes.get("/", async (c) => {
       conflicts_count,
       errors_count
     FROM sync_audit_log
-    ${sql.unsafe(whereClause)}
+    ${whereClause}
     ORDER BY started_at DESC
     LIMIT ${parseInt(limit)}
     OFFSET ${parseInt(offset)}
   `;
 
+  const rows = await rawQuery<AuditEntry>(c.env.DATABASE_URL, query);
+
   // Get total count
-  const countResult = await sql`
+  const countQuery = `
     SELECT COUNT(*) as total
     FROM sync_audit_log
-    ${sql.unsafe(whereClause)}
+    ${whereClause}
   `;
+
+  const countResult = await rawQuery<{ total: string }>(c.env.DATABASE_URL, countQuery);
 
   return c.json({
     entries: rows,
@@ -89,13 +111,11 @@ auditRoutes.get("/", async (c) => {
  * GET /api/audit/:syncId
  * Get detailed audit entry
  */
-auditRoutes.get("/:syncId", async (c) => {
+auditRoutes.get("/:syncId", async (c: Context<{ Bindings: Env }>) => {
   const syncId = c.req.param("syncId");
-  const sql = getDb(c.env.DATABASE_URL);
 
-  const rows = await sql`
-    SELECT * FROM sync_audit_log WHERE sync_id = ${syncId}
-  `;
+  const query = `SELECT * FROM sync_audit_log WHERE sync_id = '${syncId.replace(/'/g, "''")}'`;
+  const rows = await rawQuery<AuditEntry>(c.env.DATABASE_URL, query);
 
   if (rows.length === 0) {
     return c.json({ error: "Audit entry not found" }, 404);
@@ -108,15 +128,15 @@ auditRoutes.get("/:syncId", async (c) => {
  * GET /api/audit/:syncId/changes
  * Get detailed changes for a sync operation
  */
-auditRoutes.get("/:syncId/changes", async (c) => {
+auditRoutes.get("/:syncId/changes", async (c: Context<{ Bindings: Env }>) => {
   const syncId = c.req.param("syncId");
-  const sql = getDb(c.env.DATABASE_URL);
 
-  const rows = await sql`
+  const query = `
     SELECT * FROM sync_change_log
-    WHERE sync_id = ${syncId}
+    WHERE sync_id = '${syncId.replace(/'/g, "''")}'
     ORDER BY created_at
   `;
+  const rows = await rawQuery(c.env.DATABASE_URL, query);
 
   return c.json({ changes: rows });
 });
@@ -125,8 +145,7 @@ auditRoutes.get("/:syncId/changes", async (c) => {
  * GET /api/audit/export
  * Export audit logs (CSV or JSON)
  */
-auditRoutes.get("/export", async (c) => {
-  const sql = getDb(c.env.DATABASE_URL);
+auditRoutes.get("/export", async (c: Context<{ Bindings: Env }>) => {
   const {
     format = "json",
     configId,
@@ -136,13 +155,13 @@ auditRoutes.get("/export", async (c) => {
 
   // Build conditions
   const conditions: string[] = [];
-  if (configId) conditions.push(`config_id = '${configId}'`);
-  if (startDate) conditions.push(`started_at >= '${startDate}'`);
-  if (endDate) conditions.push(`started_at <= '${endDate}'`);
+  if (configId) conditions.push(`config_id = '${configId.replace(/'/g, "''")}'`);
+  if (startDate) conditions.push(`started_at >= '${startDate.replace(/'/g, "''")}'`);
+  if (endDate) conditions.push(`started_at <= '${endDate.replace(/'/g, "''")}'`);
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const rows = await sql`
+  const query = `
     SELECT
       sync_id,
       config_id,
@@ -154,9 +173,11 @@ auditRoutes.get("/export", async (c) => {
       conflicts_count,
       errors_count
     FROM sync_audit_log
-    ${sql.unsafe(whereClause)}
+    ${whereClause}
     ORDER BY started_at DESC
   `;
+
+  const rows = await rawQuery<AuditEntry>(c.env.DATABASE_URL, query);
 
   if (format === "csv") {
     const headers = [
@@ -171,7 +192,7 @@ auditRoutes.get("/export", async (c) => {
     ];
 
     const csvRows = [headers.join(",")];
-    for (const row of rows as any[]) {
+    for (const row of rows) {
       csvRows.push(
         [
           row.sync_id,
@@ -205,11 +226,11 @@ auditRoutes.get("/export", async (c) => {
  * GET /api/audit/summary
  * Get audit summary statistics
  */
-auditRoutes.get("/summary", async (c) => {
-  const sql = getDb(c.env.DATABASE_URL);
+auditRoutes.get("/summary", async (c: Context<{ Bindings: Env }>) => {
   const { days = "30" } = c.req.query();
+  const daysNum = parseInt(days);
 
-  const summary = await sql`
+  const summaryQuery = `
     SELECT
       COUNT(*) as total_syncs,
       COUNT(*) FILTER (WHERE status = 'success') as successful,
@@ -221,21 +242,25 @@ auditRoutes.get("/summary", async (c) => {
       SUM(errors_count) as total_errors,
       AVG(EXTRACT(EPOCH FROM (completed_at::timestamp - started_at::timestamp))) as avg_duration_seconds
     FROM sync_audit_log
-    WHERE started_at > NOW() - INTERVAL '${sql.unsafe(days)} days'
+    WHERE started_at > NOW() - INTERVAL '${daysNum} days'
   `;
 
+  const summary = await rawQuery<AuditSummary>(c.env.DATABASE_URL, summaryQuery);
+
   // Get daily breakdown
-  const daily = await sql`
+  const dailyQuery = `
     SELECT
       DATE(started_at) as date,
       COUNT(*) as syncs,
       COUNT(*) FILTER (WHERE status = 'success') as successful,
       SUM(changes_count) as changes
     FROM sync_audit_log
-    WHERE started_at > NOW() - INTERVAL '${sql.unsafe(days)} days'
+    WHERE started_at > NOW() - INTERVAL '${daysNum} days'
     GROUP BY DATE(started_at)
     ORDER BY date DESC
   `;
+
+  const daily = await rawQuery(c.env.DATABASE_URL, dailyQuery);
 
   return c.json({
     period: `${days} days`,

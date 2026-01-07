@@ -1,32 +1,34 @@
-import { sha256 } from "../crypto/hash";
-import { canonicalBuffer } from "../crypto/canonical";
-import { sql } from "../db/neon";
+import { sha256Hex } from "../crypto/hash";
+import { canonicalString } from "../crypto/canonical";
+import { rawQuery } from "../db/neon-worker";
+
+interface PrevHashRow {
+  hash_self: string | null;
+}
 
 export async function appendAudit(
+  databaseUrl: string,
   registry: string,
   action: string,
   seq: number,
-  payload: any
-) {
-  const prev = await sql`
+  payload: unknown
+): Promise<void> {
+  const prevQuery = `
     SELECT hash_self FROM audit_log
-    WHERE registry=${registry}
+    WHERE registry = $1
     ORDER BY audit_seq DESC LIMIT 1
   `;
+  const prev = await rawQuery<PrevHashRow>(databaseUrl, prevQuery.replace("$1", `'${registry}'`));
+
   const material = { registry, action, seq, payload };
-  const hashSelf = sha256(
-    Buffer.concat([
-      prev[0]?.hash_self ?? Buffer.alloc(0),
-      canonicalBuffer(material)
-    ])
-  );
+  const prevHash = prev[0]?.hash_self || "";
+  const hashInput = prevHash + canonicalString(material);
+  const hashSelf = await sha256Hex(hashInput);
 
-  await sql`
-    INSERT INTO audit_log
-      (registry, action, payload, hash_prev, hash_self)
-    VALUES
-      (${registry}, ${action}, ${material},
-       ${prev[0]?.hash_self ?? null}, ${hashSelf})
+  const insertQuery = `
+    INSERT INTO audit_log (registry, action, payload, hash_prev, hash_self)
+    VALUES ('${registry}', '${action}', '${JSON.stringify(material).replace(/'/g, "''")}',
+            ${prev[0]?.hash_self ? `'${prev[0].hash_self}'` : 'NULL'}, '${hashSelf}')
   `;
+  await rawQuery(databaseUrl, insertQuery);
 }
-

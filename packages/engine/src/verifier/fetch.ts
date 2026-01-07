@@ -1,40 +1,60 @@
-import fs from "fs";
 import { verifyQuorum } from "../crypto/quorum";
 import { canonicalBuffer } from "../crypto/canonical";
 
-export async function fetchAttestation(registry: string) {
-  const pathSigned = process.env.ATTESTATIONS_SIGNED_PATH || "assets/attestations.signed.json";
-  const pathPlain = process.env.ATTESTATIONS_PATH || "assets/attestations.json";
+interface Attestation {
+  decision: "allow" | "deny";
+  valid_until: string;
+  [key: string]: unknown;
+}
 
-  const pubkeys = process.env.ATTESTATION_PUBKEYS_HEX
-    ? process.env.ATTESTATION_PUBKEYS_HEX.split(",").map((s) => s.trim()).filter(Boolean)
-    : [];
-  const quorum = Math.max(0, parseInt(process.env.ATTESTATION_QUORUM || "0", 10) || 0);
+interface SignedAttestations {
+  att: Record<string, Attestation>;
+  signatures: Array<{ sig: string } | string>;
+}
 
-  // Prefer signed attestations if quorum is configured
-  if (pubkeys.length && quorum > 0) {
+/**
+ * Fetch attestation for a registry
+ * In CF Workers, attestations can come from:
+ * 1. A remote URL (ATTESTATIONS_URL env var)
+ * 2. KV store (future implementation)
+ * 3. Default allow (if not configured)
+ */
+export async function fetchAttestation(
+  registry: string,
+  options: {
+    attestationsUrl?: string;
+    pubkeys?: string[];
+    quorum?: number;
+  } = {}
+): Promise<Attestation> {
+  const { attestationsUrl, pubkeys = [], quorum = 0 } = options;
+
+  // If attestations URL is configured, fetch from there
+  if (attestationsUrl && pubkeys.length && quorum > 0) {
     try {
-      const m = JSON.parse(fs.readFileSync(pathSigned, "utf8"));
-      const msg = canonicalBuffer(m.att);
-      const sigs: string[] = (m.signatures || []).map((x: any) => x?.sig || x).filter(Boolean);
-      if (!verifyQuorum(msg, sigs, pubkeys, quorum)) {
-        throw new Error("ATTESTATION_SIGNATURE_QUORUM_FAILED");
+      const res = await fetch(attestationsUrl);
+      if (res.ok) {
+        const m = (await res.json()) as SignedAttestations;
+        const msg = canonicalBuffer(m.att);
+        const sigs: string[] = (m.signatures || [])
+          .map((x) => (typeof x === "string" ? x : x?.sig))
+          .filter((s): s is string => Boolean(s));
+
+        if (!verifyQuorum(msg, sigs, pubkeys, quorum)) {
+          throw new Error("ATTESTATION_SIGNATURE_QUORUM_FAILED");
+        }
+
+        const att = m.att?.[registry];
+        if (att) return att;
       }
-      const att = m.att?.[registry];
-      if (att) return att;
-    } catch (e) {
-      // fall through to plain on failure
+    } catch {
+      // Fall through to default on failure
     }
   }
 
-  // Plain file fallback
-  try {
-    const m = JSON.parse(fs.readFileSync(pathPlain, "utf8"));
-    const att = m?.[registry];
-    if (att) return att;
-  } catch {
-    // ignore
-  }
-
-  return { decision: "allow", valid_until: "2999-01-01T00:00:00Z" } as const;
+  // Default: allow all if no attestation configured
+  return {
+    decision: "allow",
+    valid_until: "2999-01-01T00:00:00Z",
+  };
 }

@@ -11,6 +11,7 @@ import { syncRoutes } from "./routes/sync";
 import { healthRoutes } from "./routes/health";
 import { registryRoutes } from "./routes/registry";
 import { auditRoutes } from "./routes/audit";
+import type { ScheduledEvent, ExecutionContext } from "./worker.d";
 
 export interface Env {
   // Database

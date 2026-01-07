@@ -3,8 +3,22 @@ import { verify as edVerify } from "./ed25519";
 export type SignatureHex = string; // hex-encoded detached sig
 export type PublicKeyHex = string; // hex-encoded ed25519 public key
 
+/**
+ * Convert hex string to Uint8Array
+ */
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+/**
+ * Verify that a quorum of signatures is valid for a message
+ */
 export function verifyQuorum(
-  message: Buffer,
+  message: Uint8Array,
   signatures: SignatureHex[],
   pubkeys: PublicKeyHex[],
   threshold: number
@@ -20,8 +34,8 @@ export function verifyQuorum(
       if (seen.has(key)) continue;
       const ok = edVerify(
         message,
-        Buffer.from(sigHex, "hex"),
-        Buffer.from(pkHex, "hex")
+        hexToBytes(sigHex),
+        hexToBytes(pkHex)
       );
       if (ok) {
         valid++;
@@ -33,4 +47,3 @@ export function verifyQuorum(
   }
   return valid >= threshold;
 }
-
