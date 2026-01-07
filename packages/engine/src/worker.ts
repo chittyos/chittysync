@@ -53,6 +53,35 @@ app.route("/api/sync", syncRoutes);
 app.route("/api/registry", registryRoutes);
 app.route("/api/audit", auditRoutes);
 
+// ChittyOS ecosystem status endpoint (for ChittyHelper registration)
+app.get("/api/v1/status", async (c) => {
+  const startTime = Date.now();
+
+  // Check database connectivity
+  let dbHealthy = false;
+  try {
+    const { getDb } = await import("./db/neon-worker");
+    const sql = getDb(c.env.DATABASE_URL);
+    await sql`SELECT 1`;
+    dbHealthy = true;
+  } catch {
+    dbHealthy = false;
+  }
+
+  return c.json({
+    status: dbHealthy ? "healthy" : "degraded",
+    service: "chittysync",
+    version: "2.0.0",
+    uptime: process.uptime?.() ?? 0,
+    timestamp: new Date().toISOString(),
+    checks: {
+      database: dbHealthy ? "connected" : "disconnected",
+      api: "operational",
+    },
+    latency: Date.now() - startTime,
+  });
+});
+
 // Root
 app.get("/", (c) => {
   return c.json({
