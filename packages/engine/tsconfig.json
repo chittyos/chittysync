@@ -9,8 +9,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "declaration": true,
+    "types": ["@cloudflare/workers-types", "node"]
   },
   "include": ["src"]
 }
-

@@ -1,14 +1,20 @@
 {
   "name": "@chittyos/engine",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "type": "module",
-  "main": "dist/server.js",
-  "types": "dist/server.d.ts",
+  "main": "dist/worker.js",
+  "types": "dist/worker.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "tsc -p tsconfig.json",
-    "dev": "tsx src/server.ts",
+    "dev": "wrangler dev",
+    "dev:node": "tsx src/server.ts",
     "start": "node dist/server.js",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "tail:production": "wrangler tail --env production",
     "lint": "eslint .",
     "fmt": "prettier -w .",
     "test": "vitest"
@@ -16,7 +22,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^0.9.4",
     "canonicalize": "^2.0.0",
-    "fastify": "^4.26.2",
+    "hono": "^4.6.0",
     "tweetnacl": "^1.0.3"
   },
   "files": [
@@ -27,11 +33,13 @@
   },
   "repository": "git+https://github.com/chittyos/chittysync.git",
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
     "@types/node": "^20.11.0",
     "eslint": "^8.57.0",
     "prettier": "^3.2.5",
     "tsx": "^4.16.0",
     "typescript": "^5.6.3",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "wrangler": "^3.91.0"
   }
 }
