@@ -42,3 +42,7 @@ vars = { ENVIRONMENT = "development" }
 crons = [
   "*/5 * * * *"   # Every 5 minutes for real-time tier
 ]
+
+# ChittyTrack observability
+[[tail_consumers]]
+service = "chittytrack"
