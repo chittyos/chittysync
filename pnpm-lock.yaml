@@ -17,8 +17,8 @@ importers:
         specifier: ^2.0.0
         version: 2.1.0
       hono:
-        specifier: ^4.12.4
-        version: 4.12.4
+        specifier: ^4.12.5
+        version: 4.12.5
       tweetnacl:
         specifier: ^1.0.3
         version: 1.0.3
@@ -1162,8 +1162,8 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
-  hono@4.12.4:
-    resolution: {integrity: sha512-ooiZW1Xy8rQ4oELQ++otI2T9DsKpV0M6c6cO6JGx4RTfav9poFFLlet9UMXHZnoM1yG0HWGlQLswBGX3RZmHtg==}
+  hono@4.12.5:
+    resolution: {integrity: sha512-3qq+FUBtlTHhtYxbxheZgY8NIFnkkC/MR8u5TTsr7YZ3wixryQ3cCwn3iZbg8p8B88iDBBAYSfZDS75t8MN7Vg==}
     engines: {node: '>=16.9.0'}
 
   human-signals@5.0.0:
@@ -2588,7 +2588,7 @@ snapshots:
 
   has-flag@4.0.0: {}
 
-  hono@4.12.4: {}
+  hono@4.12.5: {}
 
   human-signals@5.0.0: {}
 
