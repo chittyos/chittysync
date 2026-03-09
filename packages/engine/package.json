@@ -22,7 +22,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^0.9.4",
     "canonicalize": "^2.0.0",
-    "hono": "^4.12.4",
+    "hono": "^4.12.5",
     "tweetnacl": "^1.0.3"
   },
   "files": [
