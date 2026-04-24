@@ -33,7 +33,7 @@
   },
   "repository": "git+https://github.com/chittyos/chittysync.git",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260307.1",
+    "@cloudflare/workers-types": "^4.20260316.1",
     "@types/node": "^20.11.0",
     "eslint": "^8.57.0",
     "prettier": "^3.8.1",
