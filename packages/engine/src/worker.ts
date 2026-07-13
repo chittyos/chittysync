@@ -35,6 +35,14 @@ export interface Env {
   CHITTY_AUDIENCE_URI?: string;
   CHITTY_ROUTER_URL?: string;
 
+  // AppSheet
+  APPSHEET_APP_ID?: string;
+  APPSHEET_REVIEW_TABLE?: string;
+
+  // Google Sheets
+  SHEETS_SPREADSHEET_ID?: string;
+  SHEETS_SHEET_NAME?: string;
+
   // Crypto
   ENGINE_PUBKEY_HEX?: string;
 
@@ -60,33 +68,112 @@ app.route("/api/sync", syncRoutes);
 app.route("/api/registry", registryRoutes);
 app.route("/api/audit", auditRoutes);
 
-// ChittyOS ecosystem status endpoint (for ChittyHelper registration)
+// ChittyOS ecosystem status endpoint (Phase 3 — ChittyHelper registration + projection readiness)
 app.get("/api/v1/status", async (c) => {
   const startTime = Date.now();
+  const env = c.env;
 
-  // Check database connectivity
-  let dbHealthy = false;
+  // 1. Database
+  let dbStatus: { ok: boolean; latencyMs?: number; error?: string } = { ok: false };
   try {
+    const dbStart = Date.now();
     const { getDb } = await import("./db/neon-worker");
-    const sql = getDb(c.env.DATABASE_URL);
+    const sql = getDb(env.DATABASE_URL);
     await sql`SELECT 1`;
-    dbHealthy = true;
-  } catch {
-    dbHealthy = false;
+    dbStatus = { ok: true, latencyMs: Date.now() - dbStart };
+  } catch (err: any) {
+    dbStatus = { ok: false, error: err.message };
   }
 
+  // 2. JWKS / routing policy reachability (no key material exposed)
+  let routingStatus: { ok: boolean; latencyMs?: number; jwksCacheStatus: string; error?: string } = { ok: false, jwksCacheStatus: "not_checked" };
+  try {
+    const jwksUrl = env.CHITTY_JWKS_URL || "https://auth.chitty.cc/.well-known/jwks.json";
+    const jwksStart = Date.now();
+    const jwksRes = await fetch(jwksUrl, { method: "GET", signal: AbortSignal.timeout(5000) });
+    const latency = Date.now() - jwksStart;
+    if (jwksRes.ok) {
+      const body = await jwksRes.json() as any;
+      const keyCount = body.keys?.length ?? 0;
+      routingStatus = { ok: true, latencyMs: latency, jwksCacheStatus: `reachable (${keyCount} key(s); material not logged)` };
+    } else {
+      routingStatus = { ok: false, latencyMs: latency, jwksCacheStatus: "unreachable", error: `HTTP ${jwksRes.status}` };
+    }
+  } catch (err: any) {
+    routingStatus = { ok: false, jwksCacheStatus: "unreachable", error: err.message };
+  }
+
+  // 3. ChittySecrets readiness (existence probe only — no names or values logged)
+  let secretsStatus: { ok: boolean; latencyMs?: number; error?: string } = { ok: false };
+  try {
+    const secretsUrl = env.CHITTYSECRETS_URL || "https://secrets.chitty.cc";
+    const secStart = Date.now();
+    const headers: Record<string, string> = {};
+    if (env.CF_ACCESS_CLIENT_ID) {
+      headers["CF-Access-Client-Id"] = env.CF_ACCESS_CLIENT_ID;
+      headers["CF-Access-Client-Secret"] = env.CF_ACCESS_CLIENT_SECRET || "";
+    }
+    const secRes = await fetch(`${secretsUrl}/health`, { method: "GET", headers, signal: AbortSignal.timeout(5000) });
+    secretsStatus = { ok: secRes.ok, latencyMs: Date.now() - secStart };
+    if (!secRes.ok) secretsStatus.error = `HTTP ${secRes.status}`;
+  } catch (err: any) {
+    secretsStatus = { ok: false, error: err.message };
+  }
+
+  // 4. ChittyFinance readiness
+  const { checkChittyFinanceReadiness } = await import("./integrations/chittyfinance");
+  const financeStatus = await checkChittyFinanceReadiness(env);
+
+  // 5. Sheets projection readiness
+  const { checkSheetsReadiness } = await import("./integrations/sheets-projection");
+  const sheetsConfig = env.SHEETS_SPREADSHEET_ID
+    ? { spreadsheetId: env.SHEETS_SPREADSHEET_ID, sheetName: env.SHEETS_SHEET_NAME || "Transactions" }
+    : null;
+  const sheetsStatus = checkSheetsReadiness(sheetsConfig, env);
+
+  // 6. AppSheet review queue readiness
+  const { checkAppSheetReadiness } = await import("./integrations/appsheet-review");
+  const appsheetStatus = checkAppSheetReadiness(env);
+
+  const overallOk = dbStatus.ok && routingStatus.ok;
+  const overallStatus = overallOk ? "healthy" : dbStatus.ok ? "degraded" : "unhealthy";
+
   return c.json({
-    status: dbHealthy ? "healthy" : "degraded",
+    status: overallStatus,
     service: "chittysync",
     version: "2.0.0",
-    uptime: process.uptime?.() ?? 0,
+    environment: env.ENVIRONMENT || "development",
     timestamp: new Date().toISOString(),
+    latencyMs: Date.now() - startTime,
     checks: {
-      database: dbHealthy ? "connected" : "disconnected",
-      api: "operational",
+      database: { status: dbStatus.ok ? "connected" : "disconnected", latencyMs: dbStatus.latencyMs, error: dbStatus.error },
+      routingPolicy: {
+        status: routingStatus.ok ? "reachable" : "unreachable",
+        latencyMs: routingStatus.latencyMs,
+        jwksCacheStatus: routingStatus.jwksCacheStatus,
+        error: routingStatus.error,
+      },
+      chittySecrets: {
+        status: secretsStatus.ok ? "reachable" : "unreachable",
+        latencyMs: secretsStatus.latencyMs,
+        note: "Existence check only — no secret names or values logged",
+        error: secretsStatus.error,
+      },
+      chittyFinance: {
+        status: financeStatus.ready ? "ready" : "not_ready",
+        latencyMs: financeStatus.latencyMs,
+        error: financeStatus.error,
+      },
+      sheetsProjection: {
+        status: sheetsStatus.ready ? "configured" : "not_configured",
+        error: sheetsStatus.error,
+      },
+      appsheetReview: {
+        status: appsheetStatus.ready ? "configured" : "not_configured",
+        error: appsheetStatus.error,
+      },
     },
-    latency: Date.now() - startTime,
-  });
+  }, overallStatus === "unhealthy" ? 503 : 200);
 });
 
 // Root
