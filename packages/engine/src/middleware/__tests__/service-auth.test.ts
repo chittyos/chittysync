@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { SignJWT, exportJWK, generateKeyPair, createLocalJWKSet, type GenerateKeyPairResult } from 'jose';
+import { SignJWT, exportJWK, generateKeyPair, createLocalJWKSet } from 'jose';
 
 // ─── Re-implement the core auth logic under test ────────────────────────────
 // We cannot mock createRemoteJWKSet after module load, so we test the core
@@ -35,7 +35,7 @@ const AUDIENCE = 'chittycanon://core/services/chittysync';
 const ALLOWED_ALGS = ['RS256', 'ES256', 'EdDSA'] as const;
 const CLOCK_TOLERANCE = 30;
 
-let keys: GenerateKeyPairResult<CryptoKey>;
+let keys: { privateKey: CryptoKey; publicKey: CryptoKey };
 let JWKS: ReturnType<typeof createLocalJWKSet>;
 
 beforeAll(async () => {
