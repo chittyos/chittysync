@@ -1,135 +1,120 @@
-# ChittySync Charter
+---
+uri: chittycanon://docs/ops/charter/chittysync
+namespace: chittycanon://docs/ops
+type: policy
+version: 2.0.0
+status: PENDING
+registered_with: chittycanon://core/services/chittyregistry
+title: "ChittySync Service Charter"
+certifier: chittycanon://core/services/chittycertify
+visibility: INTERNAL
+canonical_domain: sync.chitty.cc
+tier: 3
+last_reviewed: "2026-07-13"
+---
+
+# ChittySync Service Charter
+
+> Policy document for  | Tier 3 | sync.chitty.cc
 
 ## Classification
-- **Tier**: 3 (Service Layer)
-- **Organization**: CHITTYOS
-- **Domain**: sync.chitty.cc
+
+| Field | Value |
+|---|---|
+| Tier | 3 (Service Layer) |
+| Organization | ChittyOS |
+| Canonical URI |  |
+| Domain | sync.chitty.cc |
+| Status | PENDING (awaiting ChittyCertify gate) |
 
 ## Mission
 
-ChittySync is an **enterprise data synchronization platform** that keeps canonical registries in perfect alignment across Notion, PostgreSQL, and Google Sheets with schema-driven validation, immutable audit trails, and zero-drift guarantees.
+ChittySync is an **enterprise data synchronization and corporate-papers ingestion platform**. It maintains canonical registry alignment across Notion, Neon PostgreSQL, and Google Sheets, enforces case-agnostic legal-boundary routing for all document ingestion, and records corporate import events to ChittyFinance.
 
 ## Scope
 
 ### IS Responsible For
-- Bidirectional synchronization: Notion ↔ PostgreSQL ↔ Google Sheets
-- Schema-driven validation against schema.chitty.cc
-- Cryptographic audit logging (ed25519 signatures)
-- Conflict resolution strategies (last-write-wins, hash-based)
-- State tracking (last-known snapshots for diff calculation)
-- Quorum consensus for multi-system consistency
-- Envelope verification and nonce management
-- Batch verification and signing (verifier CLI)
+
+- Corporate document ingestion with case-agnostic legal-boundary routing (ChittyRouter)
+- Forwarding ALLOW_GENERAL records to ChittyFinance ()
+- Routing ROUTE_LEGAL documents to ChittyEvidence (via ChittyConnect); storing only read-only metadata stubs
+- Queueing REVIEW decisions to AppSheet with opaque handles (no document preview)
+- Bidirectional registry sync: Notion ↔ Neon PostgreSQL ↔ Google Sheets
+- Providing the  operational readiness endpoint
 
 ### IS NOT Responsible For
-- Identity generation (ChittyID)
+
+- Evidentiary truth (ChittyEvidence / chittyevidence-db)
 - Token provisioning (ChittyAuth)
-- Service registration (ChittyRegister)
+- Service registration (ChittyRegistry)
 - Schema definition (ChittySchema)
-- Evidence management (ChittyLedger)
+- Secret custody (ChittySecrets)
+- Issuing routing decisions (ChittyRouter / ChittyAuth)
+- Corporate banking sync from Mercury (ChittyFinance)
 
-## Current State (v1.1.0)
+## Critical Dependencies
 
-| Component | Status |
-|-----------|--------|
-| Crypto foundation | Done - ed25519 signing, hashing, quorum |
-| Audit append | Done - Append-only cryptographic audit log |
-| Auth/nonce | Done - Envelope verification, nonce management |
-| Neon DB | Done - Basic Postgres connection |
-| Verifier CLI | Done - Batch verification and signing |
-| Write route | Done - Single write endpoint with validation |
+All four must be available for the service to report :
 
-## Target Architecture
+| Dependency | URI | Purpose |
+|---|---|---|
+| Database | Neon PostgreSQL | Operational registry storage |
+| ChittyRouter / JWKS |  | Legal-boundary routing decisions |
+| ChittySecrets |  | Runtime credential resolution |
+| ChittyFinance |  | ALLOW_GENERAL import recording |
 
-```
-┌─────────┐       ┌──────────────┐       ┌──────────┐
-│ Notion  │◄─────►│  ChittySync  │◄─────►│ Neon DB  │
-└─────────┘       │    Engine    │       └──────────┘
-                  │              │
-                  │  schema.cc   │
-                  │  validation  │
-                  │              │
-                  └──────┬───────┘
-                         │
-                         ▼
-                  ┌──────────────┐
-                  │ Google Sheets│
-                  └──────────────┘
-```
+## Projection Services (Non-Critical, Reported Separately)
 
-## Sync Engine Flow
+| Service | Purpose |
+|---|---|
+| Google Sheets | Reporting projection (Transactions tab) |
+| AppSheet | REVIEW decision queue |
 
-```
-Fetch → Diff → Validate → Resolve → Apply
-```
+## Endpoints
 
-## Dependencies
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | /health | public | Liveness check |
+| GET | /api/v1/status | public | Full dependency readiness |
+| POST | /api/v1/review/queue | service token or JWT  | Enqueue REVIEW decision |
+| POST | /api/v1/review/action | service token or JWT  | Resolve/reject REVIEW record |
+| POST | /api/sync/* | internal | Registry sync operations |
+| GET | /api/registry/* | internal | Registry reads |
+| GET | /api/audit/* | internal | Audit log reads |
 
-| Type | Service | Purpose |
-|------|---------|---------|
-| Upstream | ChittySchema | Schema validation |
-| Upstream | ChittyAuth | Service authentication |
-| Peer | ChittyConnect | Credential management |
-| Peer | ChittyLedger | Audit log persistence |
-| External | Notion API | Database read/write |
-| External | Google Sheets API | Range read/write |
-| Storage | Neon PostgreSQL | Primary database |
+## Required Runtime Secrets
 
-## Package Structure
+Resolved via ChittySecrets in production and staging. Development environments may use 
+ ⛅️ wrangler 4.56.0 (update available 4.110.0)
+────────────────────────────────────────────── var fallback only when  is set.
 
-```
-chittysync/
-├── packages/
-│   ├── engine/          # Server runtime (Hono + Neon)
-│   │   └── src/
-│   │       ├── audit/       # Append-only audit logging
-│   │       ├── auth/        # Nonce + envelope verification
-│   │       ├── crypto/      # ed25519, hashing, quorum
-│   │       ├── db/          # Neon Postgres, sequencer
-│   │       └── routes/      # API endpoints
-│   └── verifier/        # CLI for batch verification + signing
-├── migrations/          # Database migrations
-└── docs/               # Documentation
-```
+| Secret | Purpose |
+|---|---|
+|  | Neon PostgreSQL connection string |
+|  | Cloudflare Access client ID for ChittySecrets |
+|  | Cloudflare Access client secret |
+|  | Bearer token for ChittyFinance and ChittyRouter calls |
+|  | AppSheet API key for review queue |
+|  | Google service account JSON for Sheets projection |
+|  | Target spreadsheet for Transactions projection |
+|  | AppSheet application ID |
 
-## Environment Variables
+## Legal Boundary Rules
 
-| Variable | Purpose |
-|----------|---------|
-| `ENGINE_PUBKEY_HEX` | Ed25519 public key for verification |
-| `DATABASE_URL` | Neon connection string |
-| `NOTION_API_TOKEN` | Notion integration token (future) |
-| `GOOGLE_SERVICE_ACCOUNT` | Google Sheets service account (future) |
-| `CHITTY_SCHEMA_URL` | Schema validation endpoint |
+- No case constants (case numbers, party names) in source or configuration
+- ROUTE_LEGAL documents: forward file handle only; store only  after ChittyEvidence returns canonical ID
+- REVIEW decisions: AppSheet receives opaque handle only — no R2 URLs, no document preview
+- Production deployment blocked until ChittySecrets runtime verification succeeds
 
-## Ownership
+## Compliance Checklist
 
-| Role | Owner |
-|------|-------|
-| Service Owner | ChittyOS |
-| Technical Lead | @chittyos-infrastructure |
-| Contact | sync@chitty.cc |
-
-## Compliance
-
-- [ ] Service registered in ChittyRegistry
-- [ ] Health endpoint at sync.chitty.cc/health
-- [ ] CLAUDE.md development guide present
-- [ ] Cryptographic audit logging active
-- [ ] Schema validation against schema.chitty.cc
-- [ ] wrangler.toml configured for Cloudflare Workers
-
-## Q1 2026 MVP Checklist
-
-- [ ] Notion OAuth integration
-- [ ] Notion database read/write adapter
-- [ ] Schema validation against schema.chitty.cc
-- [ ] Bidirectional sync engine (Notion ↔ Neon)
-- [ ] State tracking (last-known snapshots)
-- [ ] Conflict resolution (last-write-wins)
-- [ ] Audit logging to ChittyLedger
-- [ ] Basic web dashboard
-- [ ] Cloudflare Workers deployment
-
----
-*Charter Version: 1.0.0 | Last Updated: 2026-01-13*
+- [x] Health endpoint at sync.chitty.cc/health
+- [x] /api/v1/status with full dependency readiness
+- [x] CHARTER.md with canonical frontmatter (type: policy)
+- [x] CHITTY.md with canonical frontmatter (type: architecture)
+- [x] AGENTS.md with development guidelines
+- [x] Legal-boundary routing enforced (case-agnostic, ChittyRouter-driven)
+- [x] Review routes authenticated (separate scopes per endpoint)
+- [x] No case constants in source (scan verified)
+- [ ] ChittyCertify gate — PENDING
+- [ ] Production cutover — BLOCKED on ChittySecrets runtime verification

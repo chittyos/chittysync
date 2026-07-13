@@ -1,0 +1,24 @@
+{
+  "root": true,
+  "env": {
+    "es2022": true,
+    "node": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "rules": {
+    "no-console": "warn",
+    "no-undef": "off"
+  },
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "**/*.d.ts",
+    "**/*.test.ts"
+  ]
+}

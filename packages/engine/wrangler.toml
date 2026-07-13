@@ -12,8 +12,14 @@ routes = [
 [env.production.vars]
 ENVIRONMENT = "production"
 CHITTY_SCHEMA_URL = "https://schema.chitty.cc"
-CHITTY_LEDGER_URL = "https://ledger.chitty.cc"
+CHITTY_FINANCE_URL = "https://finance.chitty.cc"
 CHITTY_AUTH_URL = "https://auth.chitty.cc"
+CHITTYSECRETS_URL = "https://secrets.chitty.cc"
+CHITTY_JWKS_URL = "https://auth.chitty.cc/.well-known/jwks.json"
+CHITTY_ISSUER_URI = "chittycanon://core/services/chittyrouter"
+CHITTY_AUDIENCE_URI = "chittycanon://core/services/chittysync"
+CHITTY_ROUTER_URL = "https://router.chitty.cc"
+SHEETS_SHEET_NAME = "Transactions"
 
 # Staging: sync-staging.chitty.cc
 [env.staging]
@@ -24,8 +30,14 @@ routes = [
 [env.staging.vars]
 ENVIRONMENT = "staging"
 CHITTY_SCHEMA_URL = "https://schema.chitty.cc"
-CHITTY_LEDGER_URL = "https://ledger.chitty.cc"
+CHITTY_FINANCE_URL = "https://finance.chitty.cc"
 CHITTY_AUTH_URL = "https://auth.chitty.cc"
+CHITTYSECRETS_URL = "https://secrets.chitty.cc"
+CHITTY_JWKS_URL = "https://auth.chitty.cc/.well-known/jwks.json"
+CHITTY_ISSUER_URI = "chittycanon://core/services/chittyrouter"
+CHITTY_AUDIENCE_URI = "chittycanon://core/services/chittysync"
+CHITTY_ROUTER_URL = "https://router.chitty.cc"
+SHEETS_SHEET_NAME = "Transactions"
 
 # Development
 [env.development]
@@ -33,9 +45,15 @@ vars = { ENVIRONMENT = "development" }
 
 # Secrets (set via wrangler secret put):
 # - DATABASE_URL: Neon PostgreSQL connection string
+# - CHITTY_FINANCE_URL: ChittyFinance endpoint (resolved from CHITTY_FINANCE_URL var; default finance.chitty.cc)
 # - NOTION_API_TOKEN: Notion integration token
-# - GOOGLE_SERVICE_ACCOUNT: Google Sheets service account JSON
+# - GOOGLE_SERVICE_ACCOUNT: Google Sheets service account JSON (resolved via ChittySecrets)
 # - ENGINE_PUBKEY_HEX: Ed25519 public key for verification
+# - CF_ACCESS_CLIENT_ID: Cloudflare Access client ID for ChittySecrets
+# - CF_ACCESS_CLIENT_SECRET: Cloudflare Access client secret for ChittySecrets
+# - APPSHEET_APP_ID: AppSheet application ID for review queue
+# - SHEETS_SPREADSHEET_ID: Google Sheets spreadsheet ID for Transactions projection
+# All sensitive values resolved at runtime from ChittySecrets (secrets.chitty.cc)
 
 # Scheduled sync triggers
 [triggers]
