@@ -27,6 +27,13 @@ export interface Env {
   CHITTY_SCHEMA_URL?: string;
   CHITTY_LEDGER_URL?: string;
   CHITTY_AUTH_URL?: string;
+  CHITTYSECRETS_URL?: string;
+  CF_ACCESS_CLIENT_ID?: string;
+  CF_ACCESS_CLIENT_SECRET?: string;
+  CHITTY_JWKS_URL?: string;
+  CHITTY_ISSUER_URI?: string;
+  CHITTY_AUDIENCE_URI?: string;
+  CHITTY_ROUTER_URL?: string;
 
   // Crypto
   ENGINE_PUBKEY_HEX?: string;
