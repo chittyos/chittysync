@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer for Chitty Corporate Papers Sync Workload
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
