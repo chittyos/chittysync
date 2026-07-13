@@ -1,0 +1,46 @@
+{
+  "secrets_url": "https://secrets.chitty.cc",
+  "evidence_url": "https://evidence.chitty.cc",
+  "command_url": "https://command.chitty.cc",
+  "storage_url": "https://storage.chitty.cc",
+  "finance_url": "https://finance.chitty.cc",
+  "gov_url": "https://gov.chitty.cc",
+  "entities": {
+    "aribia_llc": {
+      "gov_entity_slug": "aribia-llc",
+      "finance_tenant_slug": "aribia-llc",
+      "drive_folders": ["<aribia_folder_id>"],
+      "email_queries": ["from:usaa.com subject:statement"]
+    },
+    "it_can_be_llc": {
+      "gov_entity_slug": "it-can-be-llc",
+      "finance_tenant_slug": "it-can-be-llc",
+      "drive_folders": ["<it_can_be_folder_id>"],
+      "email_queries": []
+    },
+    "jean_arlene_venturing_llc": {
+      "gov_entity_slug": "jean-arlene-venturing",
+      "finance_tenant_slug": "jean-arlene-venturing",
+      "drive_folders": ["<jean_arlene_folder_id>"],
+      "email_queries": ["from:sofi.com subject:statement"]
+    },
+    "aribia_mgmt": {
+      "gov_entity_slug": "aribia-mgmt",
+      "finance_tenant_slug": "aribia-mgmt",
+      "drive_folders": [],
+      "email_queries": []
+    },
+    "aribia_city_studio": {
+      "gov_entity_slug": "aribia-city-studio",
+      "finance_tenant_slug": "aribia-city-studio",
+      "drive_folders": [],
+      "email_queries": []
+    },
+    "aribia_apt_arlene": {
+      "gov_entity_slug": "aribia-apt-arlene",
+      "finance_tenant_slug": "aribia-apt-arlene",
+      "drive_folders": [],
+      "email_queries": []
+    }
+  }
+}

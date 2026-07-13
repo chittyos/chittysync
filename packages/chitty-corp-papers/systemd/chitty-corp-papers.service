@@ -1,0 +1,36 @@
+[Unit]
+Description=Chitty Corporate Papers & Financials Sync Workload
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=chittysync
+Group=chittysync
+WorkingDirectory=/home/ubuntu/projects/chittysync/packages/chitty-corp-papers
+
+# Secure credential injection
+# Load the encrypted Cloudflare Access credentials so that they are exposed
+# inside the service as plaintext files under $CREDENTIALS_DIRECTORY, preventing
+# plaintext secrets from being written to disk or visible in `ps`.
+LoadCredentialEncrypted=cf_access_id:/etc/chittystorage/creds/cf_access_id.cred
+LoadCredentialEncrypted=cf_access_secret:/etc/chittystorage/creds/cf_access_secret.cred
+
+# Expose the loaded credentials as environment variables to the Node process
+Environment=CF_ACCESS_CLIENT_ID_FILE=%d/cf_access_id
+Environment=CF_ACCESS_CLIENT_SECRET_FILE=%d/cf_access_secret
+
+ExecStart=/usr/bin/npm run sync
+
+# Hardening
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/tmp
+PrivateTmp=yes
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+
+[Install]
+WantedBy=multi-user.target

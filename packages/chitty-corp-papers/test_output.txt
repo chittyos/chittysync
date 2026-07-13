@@ -1,0 +1,14 @@
+
+> @chittysync/corp-papers@1.0.0 test
+> vitest run
+
+
+ RUN  v1.6.1 /home/ubuntu/projects/worktrees/migration-chittysync/packages/chitty-corp-papers
+
+ ✓ tests/sync-pipeline.test.ts  (5 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  02:39:42
+   Duration  702ms (transform 86ms, setup 0ms, collect 62ms, tests 5ms, environment 0ms, prepare 199ms)
+

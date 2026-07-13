@@ -1,0 +1,19 @@
+{
+  "name": "@chittysync/corp-papers",
+  "version": "1.0.0",
+  "description": "ChittySync workload for corporate papers and financial syncing",
+  "main": "bin/sync-corp-papers.ts",
+  "scripts": {
+    "start": "tsx bin/sync-corp-papers.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
