@@ -11,6 +11,7 @@ import { syncRoutes } from "./routes/sync";
 import { healthRoutes } from "./routes/health";
 import { registryRoutes } from "./routes/registry";
 import { auditRoutes } from "./routes/audit";
+import { reviewRoutes } from "./routes/review";
 import type { ScheduledEvent, ExecutionContext } from "./worker.d";
 
 export interface Env {
@@ -25,7 +26,7 @@ export interface Env {
 
   // ChittyOS ecosystem
   CHITTY_SCHEMA_URL?: string;
-  CHITTY_LEDGER_URL?: string;
+  CHITTY_FINANCE_URL?: string;
   CHITTY_AUTH_URL?: string;
   CHITTYSECRETS_URL?: string;
   CF_ACCESS_CLIENT_ID?: string;
@@ -53,6 +54,14 @@ export interface Env {
 const app = new Hono<{ Bindings: Env }>();
 
 // Middleware
+// 1. Request ID — injected before all other middleware so every log line is traceable
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.use('*', async (c: any, next: any) => {
+  const requestId: string = (c.req.header('cf-ray') as string | undefined) ?? crypto.randomUUID();
+  c.header('X-Request-Id', requestId);
+  return next();
+});
+// 2. Logging — runs after request ID is stamped
 app.use("*", logger());
 app.use("*", cors({
   origin: ["https://chitty.cc", "https://*.chitty.cc"],
@@ -67,6 +76,7 @@ app.route("/health", healthRoutes);
 app.route("/api/sync", syncRoutes);
 app.route("/api/registry", registryRoutes);
 app.route("/api/audit", auditRoutes);
+app.route("/api/v1/review", reviewRoutes);
 
 // ChittyOS ecosystem status endpoint (Phase 3 — ChittyHelper registration + projection readiness)
 app.get("/api/v1/status", async (c) => {
@@ -135,8 +145,18 @@ app.get("/api/v1/status", async (c) => {
   const { checkAppSheetReadiness } = await import("./integrations/appsheet-review");
   const appsheetStatus = checkAppSheetReadiness(env);
 
-  const overallOk = dbStatus.ok && routingStatus.ok;
-  const overallStatus = overallOk ? "healthy" : dbStatus.ok ? "degraded" : "unhealthy";
+  // Critical: ALL four must be ok for healthy production processing.
+  //   - database: cannot sync without it
+  //   - routingStatus: cannot classify documents without JWKS/ChittyRouter
+  //   - secretsStatus: cannot resolve any runtime credentials
+  //   - financeStatus: ALLOW_GENERAL records cannot be recorded (declared service contract)
+  // Projection services (Sheets, AppSheet) are reported separately; their failure
+  // degrades reporting but does not block core ingestion.
+  const criticalOk = dbStatus.ok && routingStatus.ok && secretsStatus.ok && financeStatus.ready;
+  const projectionOk = sheetsStatus.ready && appsheetStatus.ready;
+  const overallStatus = criticalOk && projectionOk ? "healthy"
+    : criticalOk ? "degraded"   // projections unavailable but core ok
+    : "unhealthy";                // one or more critical deps down
 
   return c.json({
     status: overallStatus,
@@ -156,13 +176,13 @@ app.get("/api/v1/status", async (c) => {
       chittySecrets: {
         status: secretsStatus.ok ? "reachable" : "unreachable",
         latencyMs: secretsStatus.latencyMs,
-        note: "Existence check only — no secret names or values logged",
-        error: secretsStatus.error,
+        // reason_code only — no secret names, token values, or internal URLs
+        reason_code: secretsStatus.ok ? undefined : "SECRETS_UNREACHABLE",
       },
       chittyFinance: {
         status: financeStatus.ready ? "ready" : "not_ready",
         latencyMs: financeStatus.latencyMs,
-        error: financeStatus.error,
+        reason_code: financeStatus.ready ? undefined : "FINANCE_UNREACHABLE",
       },
       sheetsProjection: {
         status: sheetsStatus.ready ? "configured" : "not_configured",
@@ -173,7 +193,7 @@ app.get("/api/v1/status", async (c) => {
         error: appsheetStatus.error,
       },
     },
-  }, overallStatus === "unhealthy" ? 503 : 200);
+  }, overallStatus === "unhealthy" ? 503 : overallStatus === "degraded" ? 207 : 200);
 });
 
 // Root

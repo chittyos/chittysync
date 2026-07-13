@@ -32,3 +32,29 @@ Guidelines for agents working on the ChittySync / chitty-corp-papers codebase.
 
 5. **Opaque Review References**:
    - AppSheet `REVIEW` records must contain **metadata only** and an opaque reference handle. Never store direct R2 URLs or document contents.
+
+## Cross-Document Field Alignment
+
+The following fields must agree across CHARTER.md, CHITTY.md, and AGENTS.md:
+
+| Field | Value |
+|---|---|
+| Canonical URI |  |
+| Namespace |  |
+| Domain |  |
+| Tier | 3 |
+| Version | 2.0.0 |
+| Status | PENDING |
+| Finance integration | ChittyFinance () |
+| Secret authority | ChittySecrets () |
+| Auth / JWKS | ChittyAuth () |
+
+## Critical Production Dependencies
+
+| Dependency | Failure result |
+|---|---|
+| Neon PostgreSQL | unhealthy / 503 |
+| ChittyRouter JWKS | unhealthy / 503 |
+| ChittySecrets | unhealthy / 503 |
+| ChittyFinance | unhealthy / 503 |
+| Sheets / AppSheet | degraded / 207 |

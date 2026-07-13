@@ -1,42 +1,41 @@
 /**
- * ChittyFinance Integration Client
+ * ChittyFinance Integration
  *
- * Forwards ALLOW_GENERAL records to the canonical ChittyFinance ledger.
+ * Records ALLOW_GENERAL corporate document imports to ChittyFinance
+ * (finance.chitty.cc). ChittyFinance is the canonical corporate finance
+ * plane for ChittyOS. CHITTY_FINANCE_URL must resolve to finance.chitty.cc
+ * in production and staging.
+ *
+ * API contract:
+ *   POST /import   Record a document import event (idempotent)
+ *   GET  /health   Liveness probe
+ *
  * Rules:
- *   - Sends only ALLOW_GENERAL-classified records (never ROUTE_LEGAL or REVIEW)
- *   - Canonical entity/account identifiers; never document bodies
- *   - Records idempotency keys and stores reconciliation receipts
- *   - Fails closed: on ledger error, returns an error receipt (never silently drops)
+ *   - ALLOW_GENERAL records only (never ROUTE_LEGAL or REVIEW)
+ *   - Canonical entity/account IDs; no document bodies, filenames, or paths
+ *   - X-Idempotency-Key on every POST; 409 = safe duplicate, not an error
+ *   - Error receipt returned on any failure; never silently dropped
+ *   - Credentials resolved through ChittySecrets at runtime
  */
 
 import type { Env } from "../worker";
 import { resolveSecret } from "../auth/secrets";
 
-export interface FinanceRecord {
-  /** Canonical entity identifier (e.g. ARIBIA_LLC, ITCANBE_LLC) */
+export interface FinanceImportRecord {
   entityId: string;
-  /** Canonical account identifier from ChittyFinance account registry */
   accountId: string;
-  /** Transaction description — no document bodies or file content */
   description: string;
-  /** ISO 8601 transaction date */
   transactionDate: string;
-  /** Amount in minor units (cents) */
   amountCents: number;
-  /** Currency code (ISO 4217) */
   currency: string;
-  /** Idempotency key — caller-supplied, stable across retries */
   idempotencyKey: string;
-  /** Source class (e.g. bank_statement, invoice, expense) — no filenames or paths */
   sourceClass: string;
-  /** SHA-256 of the originating document (hex) — audit linkage only */
   documentSha256: string;
-  /** Routing decision ID that authorized this record for general ingestion */
   routingDecisionId: string;
 }
 
-export interface FinanceReceipt {
-  ledgerEntryId: string;
+export interface FinanceImportReceipt {
+  importId: string;
   idempotencyKey: string;
   status: "accepted" | "duplicate" | "error";
   timestamp: string;
@@ -44,83 +43,79 @@ export interface FinanceReceipt {
 }
 
 export async function submitToChittyFinance(
-  record: FinanceRecord,
+  record: FinanceImportRecord,
   env: Env
-): Promise<FinanceReceipt> {
-  const ledgerUrl = env.CHITTY_LEDGER_URL || "https://ledger.chitty.cc";
+): Promise<FinanceImportReceipt> {
+  const financeUrl = env.CHITTY_FINANCE_URL ?? "https://finance.chitty.cc";
 
   let credentials: string;
   try {
     credentials = await resolveSecret("CHITTY_SYNC_SERVICE_CREDENTIALS", env);
   } catch (err: any) {
     return {
-      ledgerEntryId: "",
+      importId: "",
       idempotencyKey: record.idempotencyKey,
       status: "error",
       timestamp: new Date().toISOString(),
-      error: `Credential resolution failed: ${err.message}`,
+      error: err.message as string,
     };
   }
 
-  const entry = {
-    entityType: "transaction",
-    entityId: record.entityId,
-    action: "general_import",
-    actor: "chittysync",
-    actorType: "service",
-    metadata: {
-      accountId: record.accountId,
-      description: record.description,
-      transactionDate: record.transactionDate,
-      amountCents: record.amountCents,
-      currency: record.currency,
-      sourceClass: record.sourceClass,
-      documentSha256: record.documentSha256,
-      routingDecisionId: record.routingDecisionId,
-      idempotencyKey: record.idempotencyKey,
-    },
+  const payload = {
+    entityId:          record.entityId,
+    accountId:         record.accountId,
+    description:       record.description,
+    transactionDate:   record.transactionDate,
+    amountCents:       record.amountCents,
+    currency:          record.currency,
+    sourceClass:       record.sourceClass,
+    documentSha256:    record.documentSha256,
+    routingDecisionId: record.routingDecisionId,
+    idempotencyKey:    record.idempotencyKey,
   };
 
   try {
-    const res = await fetch(`${ledgerUrl}/entries`, {
+    const endpoint = financeUrl + "/import";
+    const authHeader = "Bearer " + credentials;
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${credentials}`,
+        "Content-Type":      "application/json",
+        "Authorization":     authHeader,
         "X-Idempotency-Key": record.idempotencyKey,
       },
-      body: JSON.stringify(entry),
-      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (res.status === 409) {
       const body = await res.json() as any;
       return {
-        ledgerEntryId: body.id || body.ledgerEntryId || "",
+        importId:       body.importId ?? body.id ?? "",
         idempotencyKey: record.idempotencyKey,
-        status: "duplicate",
-        timestamp: new Date().toISOString(),
+        status:         "duplicate",
+        timestamp:      new Date().toISOString(),
       };
     }
 
     if (!res.ok) {
-      throw new Error(`ChittyFinance returned HTTP ${res.status}: ${res.statusText}`);
+      throw new Error("ChittyFinance returned HTTP " + res.status.toString());
     }
 
     const body = await res.json() as any;
     return {
-      ledgerEntryId: body.id || body.ledgerEntryId || "",
+      importId:       body.importId ?? body.id ?? "",
       idempotencyKey: record.idempotencyKey,
-      status: "accepted",
-      timestamp: new Date().toISOString(),
+      status:         "accepted",
+      timestamp:      new Date().toISOString(),
     };
   } catch (err: any) {
     return {
-      ledgerEntryId: "",
+      importId:       "",
       idempotencyKey: record.idempotencyKey,
-      status: "error",
-      timestamp: new Date().toISOString(),
-      error: err.message,
+      status:         "error",
+      timestamp:      new Date().toISOString(),
+      error:          err.message as string,
     };
   }
 }
@@ -130,15 +125,15 @@ export async function checkChittyFinanceReadiness(env: Env): Promise<{
   latencyMs?: number;
   error?: string;
 }> {
-  const ledgerUrl = env.CHITTY_LEDGER_URL || "https://ledger.chitty.cc";
+  const financeUrl = env.CHITTY_FINANCE_URL ?? "https://finance.chitty.cc";
   const start = Date.now();
   try {
-    const res = await fetch(`${ledgerUrl}/health`, {
+    const res = await fetch(financeUrl + "/health", {
       method: "GET",
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(5_000),
     });
     return { ready: res.ok, latencyMs: Date.now() - start };
   } catch (err: any) {
-    return { ready: false, latencyMs: Date.now() - start, error: err.message };
+    return { ready: false, latencyMs: Date.now() - start, error: err.message as string };
   }
 }

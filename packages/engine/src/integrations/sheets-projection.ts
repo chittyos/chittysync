@@ -9,7 +9,6 @@
 
 import type { Env } from "../worker";
 import { resolveSecret } from "../auth/secrets";
-import type { FinanceRecord } from "./chittyfinance";
 
 export interface SheetsProjectionConfig {
   spreadsheetId: string;
@@ -18,16 +17,29 @@ export interface SheetsProjectionConfig {
 
 const HEADER_ROW = ["Date","Entity","Account","Description","Amount","Currency","SourceClass","DocRef","DecisionId","ImportedAt"];
 
+export interface SheetsRowRecord {
+  entityId: string;
+  accountId: string;
+  description: string;
+  transactionDate: string;
+  amountCents: number;
+  currency: string;
+  sourceClass: string;
+  documentSha256: string;
+  routingDecisionId: string;
+  idempotencyKey: string;
+}
+
 export async function appendToSheetsProjection(
-  record: FinanceRecord,
+  record: SheetsRowRecord,
   config: SheetsProjectionConfig,
   env: Env
 ): Promise<{ success: boolean; updatedRange?: string; error?: string }> {
   let serviceAccountJson: string;
   try {
-    serviceAccountJson = env.GOOGLE_SERVICE_ACCOUNT
-      ? env.GOOGLE_SERVICE_ACCOUNT
-      : await resolveSecret("GOOGLE_SERVICE_ACCOUNT", env);
+    // Always resolve through ChittySecrets; env.GOOGLE_SERVICE_ACCOUNT is only
+    // available in development via the dev-fallback path in resolveSecret().
+    serviceAccountJson = await resolveSecret("GOOGLE_SERVICE_ACCOUNT", env);
   } catch (err: any) {
     return { success: false, error: `Credential resolution failed: ${err.message}` };
   }
@@ -76,9 +88,7 @@ export async function appendToSheetsProjection(
 export async function ensureSheetHeader(config: SheetsProjectionConfig, env: Env): Promise<void> {
   let serviceAccountJson: string;
   try {
-    serviceAccountJson = env.GOOGLE_SERVICE_ACCOUNT
-      ? env.GOOGLE_SERVICE_ACCOUNT
-      : await resolveSecret("GOOGLE_SERVICE_ACCOUNT", env);
+    serviceAccountJson = await resolveSecret("GOOGLE_SERVICE_ACCOUNT", env);
   } catch { return; }
   let serviceAccount: any;
   try { serviceAccount = JSON.parse(serviceAccountJson); } catch { return; }
@@ -105,7 +115,10 @@ export async function ensureSheetHeader(config: SheetsProjectionConfig, env: Env
 
 export function checkSheetsReadiness(config: SheetsProjectionConfig | null, env: Env): { ready: boolean; error?: string } {
   if (!config?.spreadsheetId) return { ready: false, error: "Sheets not configured (no SHEETS_SPREADSHEET_ID)" };
-  if (!env.GOOGLE_SERVICE_ACCOUNT && !env.CF_ACCESS_CLIENT_ID) return { ready: false, error: "GOOGLE_SERVICE_ACCOUNT not configured" };
+  // Credentials resolved at write-time via ChittySecrets (CF Access required in non-dev)
+  if (!env.CF_ACCESS_CLIENT_ID && env.ENVIRONMENT !== "development") {
+    return { ready: false, error: "CF_ACCESS_CLIENT_ID required for ChittySecrets credential resolution" };
+  }
   return { ready: true };
 }
 

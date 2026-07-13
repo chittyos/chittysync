@@ -17,11 +17,21 @@ export async function resolveSecret(name: string, env: Env): Promise<string> {
   const clientSecret = env.CF_ACCESS_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    // In local development environment ONLY, allow reading from wrangler env vars as fallback
-    if (env.ENVIRONMENT === "development" && env[name as keyof Env]) {
-      return env[name as keyof Env] as string;
+    // Development-only fallback: read directly from wrangler dev vars.
+    // This path MUST NOT be reachable in production or staging; CF_ACCESS_CLIENT_ID
+    // and CF_ACCESS_CLIENT_SECRET are required secrets for those environments.
+    if (env.ENVIRONMENT === "development") {
+      const directValue = env[name as keyof Env] as string | undefined;
+      if (directValue) {
+        console.warn(`[secrets] DEV FALLBACK: resolved '${name}' from wrangler env (not ChittySecrets)`);
+        return directValue;
+      }
+      throw new SecretsError(`Secret '${name}' not found in wrangler dev vars and CF Access credentials are absent`);
     }
-    throw new SecretsError(`Missing Cloudflare Access credentials to resolve secret: ${name}`);
+    // In staging and production, missing Access credentials is a hard failure.
+    throw new SecretsError(
+      `CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET are required in ${env.ENVIRONMENT || "production"} to resolve secret: ${name}`
+    );
   }
 
   try {

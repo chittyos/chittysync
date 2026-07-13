@@ -12,7 +12,7 @@ routes = [
 [env.production.vars]
 ENVIRONMENT = "production"
 CHITTY_SCHEMA_URL = "https://schema.chitty.cc"
-CHITTY_LEDGER_URL = "https://ledger.chitty.cc"
+CHITTY_FINANCE_URL = "https://finance.chitty.cc"
 CHITTY_AUTH_URL = "https://auth.chitty.cc"
 CHITTYSECRETS_URL = "https://secrets.chitty.cc"
 CHITTY_JWKS_URL = "https://auth.chitty.cc/.well-known/jwks.json"
@@ -30,7 +30,7 @@ routes = [
 [env.staging.vars]
 ENVIRONMENT = "staging"
 CHITTY_SCHEMA_URL = "https://schema.chitty.cc"
-CHITTY_LEDGER_URL = "https://ledger.chitty.cc"
+CHITTY_FINANCE_URL = "https://finance.chitty.cc"
 CHITTY_AUTH_URL = "https://auth.chitty.cc"
 CHITTYSECRETS_URL = "https://secrets.chitty.cc"
 CHITTY_JWKS_URL = "https://auth.chitty.cc/.well-known/jwks.json"
@@ -45,6 +45,7 @@ vars = { ENVIRONMENT = "development" }
 
 # Secrets (set via wrangler secret put):
 # - DATABASE_URL: Neon PostgreSQL connection string
+# - CHITTY_FINANCE_URL: ChittyFinance endpoint (resolved from CHITTY_FINANCE_URL var; default finance.chitty.cc)
 # - NOTION_API_TOKEN: Notion integration token
 # - GOOGLE_SERVICE_ACCOUNT: Google Sheets service account JSON (resolved via ChittySecrets)
 # - ENGINE_PUBKEY_HEX: Ed25519 public key for verification
