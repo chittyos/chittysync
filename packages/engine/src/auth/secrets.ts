@@ -35,35 +35,34 @@ export async function resolveSecret(name: string, env: Env): Promise<string> {
   }
 
   try {
-    const res = await fetch(`${secretsUrl}/mcp`, {
+    const res = await fetch(`${secretsUrl}/service/secrets/reveal`, {
       method: "POST",
       headers: {
         "CF-Access-Client-Id": clientId,
         "CF-Access-Client-Secret": clientSecret,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        method: "tools/call",
-        params: {
-          name: "secrets_resolve",
-          arguments: {
-            name: name,
-          },
-        },
-      }),
+      body: JSON.stringify({ name }),
       signal: AbortSignal.timeout(15000), // Enforce 15s timeout
     });
 
     if (!res.ok) {
-      throw new SecretsError(`ChittySecrets returned HTTP ${res.status} ${res.statusText}`);
+      let errMsg = `ChittySecrets returned HTTP ${res.status} ${res.statusText}`;
+      try {
+        const errJson = await res.json() as any;
+        if (errJson.error) {
+          errMsg += `: ${errJson.error} (${errJson.reason || "no reason"})`;
+        }
+      } catch {}
+      throw new SecretsError(errMsg);
     }
 
     const json = await res.json() as any;
     if (json.error) {
-      throw new SecretsError(`ChittySecrets resolution error: ${json.error.message || json.error}`);
+      throw new SecretsError(`ChittySecrets resolution error: ${json.error}`);
     }
 
-    const value = json.result?.content?.[0]?.text || json.result?.value;
+    const value = json.value;
     if (!value) {
       throw new SecretsError(`ChittySecrets returned empty value for secret: ${name}`);
     }
