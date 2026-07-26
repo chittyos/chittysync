@@ -35,7 +35,7 @@ export async function resolveSecret(name: string, env: Env): Promise<string> {
   }
 
   try {
-    const res = await fetch(`${secretsUrl}/mcp/service/secrets/reveal`, {
+    const res = await fetch(`${secretsUrl}/mcp?action=reveal`, {
       method: "POST",
       headers: {
         "CF-Access-Client-Id": clientId,
