@@ -20,7 +20,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
+    "@neondatabase/serverless": "^1.1.0",
     "canonicalize": "^2.0.0",
     "hono": "^4.12.8",
     "tweetnacl": "^1.0.3"
