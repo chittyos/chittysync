@@ -11,3 +11,8 @@ artifacts/
 *.log
 *.tgz
 
+
+# wrangler local secrets — never commit (leaked a live DATABASE_URL 2026-01-08)
+.dev.vars
+**/.dev.vars
+.dev.vars.*

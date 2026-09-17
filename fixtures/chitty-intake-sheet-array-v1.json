@@ -1,0 +1,23 @@
+{
+  "$id": "chitty-intake-sheet-array-v1",
+  "spec": "RFC 8785 (JSON Canonicalization Scheme)",
+  "description": "Cross-runtime equivalence anchor. Apps Script, TypeScript, and Postgres MUST each produce byte-identical jcs_canonical and sha256 for input. Keys are intentionally unordered in input to assert JCS key-sorting.",
+  "input": [
+    {
+      "transition": "PREPARED",
+      "source_sheet_row": 2,
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "file_name_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "source_previous_event_hash": null
+    },
+    {
+      "source_sheet_row": 3,
+      "transition": "PRIMARY_COMMITTED",
+      "file_name_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "source_previous_event_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  ],
+  "jcs_canonical": "[{\"file_name_hash\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"source_previous_event_hash\":null,\"source_sheet_row\":2,\"transition\":\"PREPARED\"},{\"file_name_hash\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"source_previous_event_hash\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"source_sheet_row\":3,\"transition\":\"PRIMARY_COMMITTED\"}]",
+  "sha256": "3f2b1b30f9fca0674bdf64c12c10219cb3d3dc6dd34931ccb04c50e24bd7d93f"
+}
