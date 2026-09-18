@@ -11,3 +11,7 @@ artifacts/
 *.log
 *.tgz
 
+# Wrangler local dev secrets — never commit (see chittysync#28)
+.dev.vars
+**/.dev.vars
+.dev.vars.*
