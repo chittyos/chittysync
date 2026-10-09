@@ -7,7 +7,9 @@ compatibility_flags = ["nodejs_compat"]
 [env.production]
 workers_dev = false
 routes = [
-  { pattern = "sync.chitty.cc/v1/*", zone_name = "chitty.cc" }
+  { pattern = "sync.chitty.cc/v1/*", zone_name = "chitty.cc" },
+  { pattern = "sync.chitty.cc/api/v1/*", zone_name = "chitty.cc" },
+  { pattern = "sync.chitty.cc/health", zone_name = "chitty.cc" }
 ]
 
 [env.production.vars]
@@ -26,7 +28,9 @@ SHEETS_SHEET_NAME = "Transactions"
 [env.staging]
 workers_dev = false
 routes = [
-  { pattern = "sync-staging.chitty.cc/v1/*", zone_name = "chitty.cc" }
+  { pattern = "sync-staging.chitty.cc/v1/*", zone_name = "chitty.cc" },
+  { pattern = "sync-staging.chitty.cc/api/v1/*", zone_name = "chitty.cc" },
+  { pattern = "sync-staging.chitty.cc/health", zone_name = "chitty.cc" }
 ]
 
 [env.staging.vars]
